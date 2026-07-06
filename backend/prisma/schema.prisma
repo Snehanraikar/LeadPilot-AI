@@ -1,0 +1,430 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [vector]
+}
+
+// ─── Enums ───────────────────────────────────────────────────────────────────
+
+enum Role {
+  ADMIN
+  MANAGER
+  SALES_AGENT
+}
+
+enum LeadStatus {
+  NEW
+  CONTACTED
+  QUALIFIED
+  PROPOSAL
+  NEGOTIATION
+  WON
+  LOST
+  DISQUALIFIED
+}
+
+enum LeadSource {
+  WEBSITE
+  REFERRAL
+  COLD_CALL
+  EMAIL_CAMPAIGN
+  SOCIAL_MEDIA
+  EVENT
+  PARTNER
+  INBOUND
+  OTHER
+}
+
+enum WellnessFocus {
+  FITNESS
+  NUTRITION
+  SLEEP_RECOVERY
+  MENTAL_WELLNESS
+  WEIGHT_MANAGEMENT
+  SKINCARE
+  OTHER
+}
+
+enum ProductCategory {
+  SUPPLEMENT
+  EQUIPMENT
+  PROGRAM
+  DEVICE
+  APPAREL
+}
+
+enum PurchaseStatus {
+  COMPLETED
+  REFUNDED
+  CANCELLED
+}
+
+enum ActivityType {
+  CALL
+  EMAIL
+  MEETING
+  DEMO
+  NOTE
+  TASK
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  LOGIN
+  LOGOUT
+  EXPORT
+  IMPORT
+}
+
+enum SubscriptionPlan {
+  FREE
+  STARTER
+  GROWTH
+  ENTERPRISE
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  TRIALING
+  PAST_DUE
+  CANCELED
+  PAUSED
+}
+
+// ─── Core Entities ────────────────────────────────────────────────────────────
+
+model Organization {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  logoUrl   String?
+  website   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users         User[]
+  leads         Lead[]
+  products      Product[]
+  purchases     Purchase[]
+  subscriptions Subscription[]
+  auditLogs     AuditLog[]
+  notifications Notification[]
+
+  @@map("organizations")
+}
+
+model User {
+  id              String    @id @default(cuid())
+  email           String    @unique
+  passwordHash    String?
+  firstName       String
+  lastName        String
+  avatarUrl       String?
+  role            Role      @default(SALES_AGENT)
+  isEmailVerified Boolean   @default(false)
+  googleId        String?   @unique
+  isActive        Boolean   @default(true)
+  lastLoginAt     DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  ownedLeads    Lead[]         @relation("LeadOwner")
+  activities    Activity[]
+  notes         Note[]
+  refreshTokens RefreshToken[]
+  auditLogs     AuditLog[]
+  notifications Notification[]
+
+  @@index([organizationId])
+  @@index([email])
+  @@map("users")
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  isRevoked Boolean  @default(false)
+  createdAt DateTime @default(now())
+  userAgent String?
+  ipAddress String?
+
+  @@index([userId])
+  @@index([token])
+  @@map("refresh_tokens")
+}
+
+// ─── Lead System ─────────────────────────────────────────────────────────────
+
+model Lead {
+  id             String         @id @default(cuid())
+  name           String
+  email          String?
+  phone          String?
+  company        String?
+  wellnessFocus  WellnessFocus?
+  jobTitle       String?
+  website        String?
+  linkedinUrl    String?
+  leadSource     LeadSource     @default(OTHER)
+  status         LeadStatus     @default(NEW)
+  estimatedValue Decimal?       @db.Decimal(15, 2)
+  currency       String         @default("USD")
+  tags           String[]
+  customFields   Json?
+  isArchived     Boolean        @default(false)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  ownerId        String
+  owner          User         @relation("LeadOwner", fields: [ownerId], references: [id])
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  activities  Activity[]
+  notes       Note[]
+  purchases   Purchase[]
+  aiSummaries AiSummary[]
+  leadScores  LeadScore[]
+  embeddings  LeadEmbedding[]
+
+  @@index([organizationId])
+  @@index([ownerId])
+  @@index([status])
+  @@index([email])
+  @@map("leads")
+}
+
+// ─── Products & Purchases ────────────────────────────────────────────────────
+
+model Product {
+  id                String          @id @default(cuid())
+  name              String
+  sku               String
+  category          ProductCategory
+  description       String?
+  price             Decimal         @db.Decimal(10, 2)
+  currency          String          @default("USD")
+  replenishmentDays Int? // typical days a purchase lasts before repurchase is due
+  isActive          Boolean         @default(true)
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  purchases Purchase[]
+
+  @@unique([organizationId, sku])
+  @@index([organizationId])
+  @@map("products")
+}
+
+model Purchase {
+  id                  String         @id @default(cuid())
+  quantity            Int            @default(1)
+  unitPrice           Decimal        @db.Decimal(10, 2)
+  currency            String         @default("USD")
+  status              PurchaseStatus @default(COMPLETED)
+  purchasedAt         DateTime       @default(now())
+  nextReplenishmentAt DateTime?
+  notes               String?
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+
+  leadId String
+  lead   Lead   @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([leadId])
+  @@index([productId])
+  @@index([organizationId])
+  @@index([nextReplenishmentAt])
+  @@map("purchases")
+}
+
+model Activity {
+  id          String       @id @default(cuid())
+  type        ActivityType
+  title       String
+  description String?
+  scheduledAt DateTime?
+  completedAt DateTime?
+  duration    Int? // minutes
+  outcome     String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  leadId String
+  lead   Lead   @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  @@index([leadId])
+  @@index([userId])
+  @@index([scheduledAt])
+  @@map("activities")
+}
+
+model Note {
+  id        String   @id @default(cuid())
+  content   String
+  isPinned  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  leadId String
+  lead   Lead   @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  @@index([leadId])
+  @@map("notes")
+}
+
+// ─── AI Entities ─────────────────────────────────────────────────────────────
+
+model AiSummary {
+  id              String   @id @default(cuid())
+  customerProfile String
+  painPoints      String[]
+  buyingSignals   String[]
+  objections      String[]
+  suggestedAction String
+  modelUsed       String
+  promptVersion   String   @default("v1")
+  tokenCount      Int?
+  createdAt       DateTime @default(now())
+
+  leadId String
+  lead   Lead   @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@index([leadId])
+  @@map("ai_summaries")
+}
+
+model LeadScore {
+  id         String   @id @default(cuid())
+  score      Int // 0–100
+  confidence Float // 0–1
+  reasons    String[]
+  modelUsed  String
+  createdAt  DateTime @default(now())
+
+  leadId String
+  lead   Lead   @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@index([leadId])
+  @@map("lead_scores")
+}
+
+model LeadEmbedding {
+  id             String                      @id @default(cuid())
+  embedding      Unsupported("vector(384)")?
+  contentHash    String
+  modelUsed      String
+  organizationId String
+  name           String
+  company        String?
+  status         String
+  wellnessFocus  String?
+  content        String
+  createdAt      DateTime                    @default(now())
+  updatedAt      DateTime                    @updatedAt
+
+  leadId String @unique
+  lead   Lead   @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@map("lead_embeddings")
+}
+
+// ─── Notifications ───────────────────────────────────────────────────────────
+
+model Notification {
+  id        String   @id @default(cuid())
+  title     String
+  body      String
+  type      String // follow_up_reminder | lead_assigned | score_updated | etc.
+  isRead    Boolean  @default(false)
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  userId         String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead])
+  @@map("notifications")
+}
+
+// ─── Subscriptions ────────────────────────────────────────────────────────────
+
+model Subscription {
+  id                String             @id @default(cuid())
+  plan              SubscriptionPlan   @default(FREE)
+  status            SubscriptionStatus @default(ACTIVE)
+  stripeCustomerId  String?
+  stripeSubId       String?
+  currentPeriodEnd  DateTime?
+  cancelAtPeriodEnd Boolean            @default(false)
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  organizationId String       @unique
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@map("subscriptions")
+}
+
+// ─── Cache ───────────────────────────────────────────────────────────────────
+
+model Cache {
+  key       String    @id
+  value     String
+  expiresAt DateTime?
+  createdAt DateTime  @default(now())
+
+  @@map("cache")
+}
+
+// ─── Audit ────────────────────────────────────────────────────────────────────
+
+model AuditLog {
+  id        String      @id @default(cuid())
+  action    AuditAction
+  entity    String // table name
+  entityId  String
+  changes   Json? // { before, after }
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime    @default(now())
+
+  userId         String?
+  user           User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([userId])
+  @@index([entity, entityId])
+  @@map("audit_logs")
+}

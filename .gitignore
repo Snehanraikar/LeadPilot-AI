@@ -1,0 +1,30 @@
+node_modules/
+dist/
+.next/
+build/
+coverage/
+*.tsbuildinfo
+*.env
+.env.local
+.env.*.local
+!.env.example
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/settings.json
+
+# Docker volumes (don't commit data)
+postgres_data/
+
+# Playwright
+playwright-report/
+test-results/
