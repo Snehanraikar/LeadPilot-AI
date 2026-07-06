@@ -149,7 +149,7 @@ export default function CopilotPage() {
                   {msg.sources.map((s) => (
                     <Link
                       key={s.leadId}
-                      href={`/leads/${s.leadId}`}
+                      href={`/leads/detail?id=${s.leadId}`}
                       className="flex items-center gap-2 px-3 py-2 rounded-lg bg-card/50 border border-border hover:border-primary/30 text-xs text-muted hover:text-text transition-all"
                     >
                       <ExternalLink className="w-3 h-3 flex-shrink-0" />

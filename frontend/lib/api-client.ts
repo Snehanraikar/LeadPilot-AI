@@ -32,7 +32,7 @@ async function refreshAccessToken(): Promise<string | null> {
   if (!res.ok) {
     localStorage.removeItem('access_token');
     localStorage.removeItem('refresh_token');
-    window.location.href = '/login';
+    window.location.href = `${process.env.NEXT_PUBLIC_BASE_PATH ?? ''}/login`;
     return null;
   }
 

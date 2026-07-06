@@ -88,7 +88,7 @@ export default function ProductsPage() {
             {replenishments.map((r, i) => (
               <Link
                 key={r.id}
-                href={`/leads/${r.lead.id}`}
+                href={`/leads/detail?id=${r.lead.id}`}
                 className="flex items-center justify-between px-3 py-2 rounded-lg bg-card/50 border border-border hover:border-primary/40 hover:-translate-y-0.5 hover:shadow-sm transition-all animate-fade-in"
                 style={{ animationDelay: `${Math.min(i, 10) * 40}ms`, animationFillMode: 'backwards' }}
               >

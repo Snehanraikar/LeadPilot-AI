@@ -69,7 +69,7 @@ export default function ActivitiesPage() {
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-text">{item.title}</p>
                     <p className="text-xs text-muted mt-0.5">
-                      <Link href={`/leads/${item.lead.id}`} className="hover:text-primary hover:underline">
+                      <Link href={`/leads/detail?id=${item.lead.id}`} className="hover:text-primary hover:underline">
                         {item.lead.name}
                       </Link>
                       {item.lead.company && ` · ${item.lead.company}`}

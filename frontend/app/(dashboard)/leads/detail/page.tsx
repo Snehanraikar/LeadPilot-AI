@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { Suspense, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useLead } from '../../../../hooks/useLeads';
 import { useTimeline } from '../../../../hooks/useActivities';
 import { useLeadSummary, useLeadScore, useFollowUpGenerator } from '../../../../hooks/useAI';
@@ -39,10 +39,10 @@ const ACTIVITY_ICONS: Record<string, React.ElementType> = {
   TASK: Calendar,
 };
 
-export default function LeadDetailPage() {
-  const params = useParams<{ id: string }>();
+function LeadDetailContent() {
+  const searchParams = useSearchParams();
   const router = useRouter();
-  const leadId = params.id;
+  const leadId = searchParams.get('id') ?? '';
 
   const { data: lead, isLoading, error } = useLead(leadId);
   const { data: timeline, isLoading: timelineLoading } = useTimeline(leadId);
@@ -325,5 +325,20 @@ export default function LeadDetailPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function LeadDetailPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="p-6 space-y-4 max-w-5xl mx-auto">
+          <Skeleton className="h-8 w-48" />
+          <Skeleton className="h-40 w-full" />
+        </div>
+      }
+    >
+      <LeadDetailContent />
+    </Suspense>
   );
 }

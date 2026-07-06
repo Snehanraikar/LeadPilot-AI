@@ -44,7 +44,7 @@ function LeadRow({ lead, delay = 0 }: { lead: Lead; delay?: number }) {
       <td className="px-4 py-3 text-sm text-muted">{formatRelativeTime(lead.createdAt)}</td>
       <td className="px-4 py-3">
         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-          <Link href={`/leads/${lead.id}`}>
+          <Link href={`/leads/detail?id=${lead.id}`}>
             <Button variant="ghost" size="icon" className="h-7 w-7">
               <Eye className="w-3.5 h-3.5" />
             </Button>

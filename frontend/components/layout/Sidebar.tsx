@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';
 import {
   LayoutDashboard, Users, Activity, Bot, Package,
@@ -38,6 +38,7 @@ const bottomItems = [
 
 export function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
   const { user, reset } = useAuthStore();
   const [collapsed, setCollapsed] = useState(false);
   const { resolvedTheme, setTheme } = useTheme();
@@ -50,7 +51,7 @@ export function Sidebar() {
     await authService.logout(refreshToken).catch(() => null);
     authService.clearTokens();
     reset();
-    window.location.href = '/login';
+    router.push('/login');
   };
 
   return (
