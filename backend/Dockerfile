@@ -37,4 +37,6 @@ EXPOSE 4000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
   CMD wget -qO- http://localhost:4000/health || exit 1
 
-CMD ["node", "dist/index.js"]
+# Free-tier Render has no separate "pre-deploy" step, so migrations run on every
+# container start. `prisma migrate deploy` is idempotent — a no-op if already applied.
+CMD ["sh", "-c", "npx prisma migrate deploy && node dist/index.js"]
