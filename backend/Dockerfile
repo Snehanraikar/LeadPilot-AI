@@ -1,6 +1,8 @@
 # ─── Build stage ──────────────────────────────────────────────────────────────
 FROM node:20-alpine AS builder
 
+RUN apk add --no-cache openssl
+
 WORKDIR /app
 
 COPY package*.json ./
@@ -18,17 +20,22 @@ FROM node:20-alpine AS runner
 
 ENV NODE_ENV=production
 
-RUN addgroup --system --gid 1001 nodejs && \
+RUN apk add --no-cache openssl && \
+    addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 apiuser
 
 WORKDIR /app
 
 COPY package*.json ./
-RUN npm ci --omit=dev --ignore-scripts
+COPY prisma ./prisma
+# No --ignore-scripts here: prisma's postinstall must run (as root, at build time)
+# to download its query-engine binary. Skipping it forces a lazy download at
+# container startup instead, which fails once the process drops to the
+# non-root `apiuser` below (can't write into node_modules/@prisma/engines).
+RUN npm ci --omit=dev
 
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
-COPY prisma ./prisma
 
 USER apiuser
 
